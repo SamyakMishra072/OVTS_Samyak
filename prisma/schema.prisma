@@ -1,0 +1,46 @@
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Vehicle {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String
+  registrationNo   String
+  vehicleType      String
+  model            String
+  manufacturer     String
+  yearOfMake       Int
+  currentLocation  String?
+  startLocation    String?
+  endLocation      String?
+  startDate        DateTime?
+  endDate          DateTime?
+  status           String    @default("active")
+  lastUpdated      DateTime  @updatedAt
+  createdAt        DateTime  @default(now())
+  trips           Trip[]
+
+  @@index([userId])
+}
+
+model Trip {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  vehicleId       String    @db.ObjectId
+  startLocation   String
+  endLocation     String
+  startDate       DateTime
+  endDate         DateTime
+  status          String    @default("planned") // planned, ongoing, completed
+  notes           String?
+  distance        Float?
+  vehicle         Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([vehicleId])
+}
