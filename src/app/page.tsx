@@ -53,12 +53,12 @@ export default function Home() {
           <div className="mt-12 space-x-4">
             {!user ? (
               <>
-                <Link href="/sign-in">
+                <Link href="/signin">
                   <Button size="lg" className="px-8">
                     Get Started
                   </Button>
                 </Link>
-                <Link href="/sign-up">
+                <Link href="/signup">
                   <Button variant="outline" size="lg">
                     Create Account
                   </Button>
