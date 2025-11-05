@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
 import { LatLngExpression } from "leaflet";
 import { motion } from "framer-motion";
-import { MapPin, PlusCircle, LocateFixed } from "lucide-react";
+import { PlusCircle, LocateFixed } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,15 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 
+const VehicleMap = dynamic(() => import("@/components/VehicleMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-[500px] text-gray-500">
+      Loading map...
+    </div>
+  ),
+});
+
 const vehicleSchema = z.object({
   registrationNo: z.string().min(1, "Registration number is required"),
   vehicleType: z.string().min(1, "Vehicle type is required"),
@@ -42,7 +51,7 @@ const vehicleSchema = z.object({
 export default function AddVehicle() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [position, setPosition] = useState<LatLngExpression>([20.5937, 78.9629]); // Default India center
+  const [position, setPosition] = useState<LatLngExpression>([20.5937, 78.9629]); // default India center
 
   const form = useForm<z.infer<typeof vehicleSchema>>({
     resolver: zodResolver(vehicleSchema),
@@ -57,32 +66,31 @@ export default function AddVehicle() {
   });
 
   const handleUseMyLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const coords: LatLngExpression = [
-            pos.coords.latitude,
-            pos.coords.longitude,
-          ];
-          setPosition(coords);
-          form.setValue(
-            "currentLocation",
-            `Lat: ${coords[0].toFixed(4)}, Lng: ${coords[1].toFixed(4)}`
-          );
-          toast({
-            title: "Location Set",
-            description: "Your current location was added successfully.",
-          });
-        },
-        () => {
-          toast({
-            title: "Location Error",
-            description: "Unable to fetch your current location.",
-            variant: "destructive",
-          });
-        }
-      );
-    }
+    if (typeof window === "undefined" || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords: LatLngExpression = [
+          pos.coords.latitude,
+          pos.coords.longitude,
+        ];
+        setPosition(coords);
+        form.setValue(
+          "currentLocation",
+          `Lat: ${coords[0].toFixed(4)}, Lng: ${coords[1].toFixed(4)}`
+        );
+        toast({
+          title: "Location Set",
+          description: "Your current location was added successfully.",
+        });
+      },
+      () => {
+        toast({
+          title: "Location Error",
+          description: "Unable to fetch your current location.",
+          variant: "destructive",
+        });
+      }
+    );
   };
 
   const onSubmit = async (values: z.infer<typeof vehicleSchema>) => {
@@ -107,7 +115,7 @@ export default function AddVehicle() {
       });
       router.push("/dashboard");
       router.refresh();
-    } catch (error: unknown) {
+    } catch (error) {
       console.error(error);
       toast({
         title: "Error",
@@ -127,7 +135,7 @@ export default function AddVehicle() {
         className="w-full max-w-5xl bg-white/90 backdrop-blur-md rounded-3xl shadow-xl overflow-hidden"
       >
         <div className="grid md:grid-cols-2">
-          {/* Form Section */}
+          {/* --- Form Section --- */}
           <div className="p-8">
             <Card className="shadow-none border-none">
               <CardHeader className="pb-4">
@@ -149,10 +157,7 @@ export default function AddVehicle() {
                         <FormItem>
                           <FormLabel>Registration Number</FormLabel>
                           <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="Enter registration number"
-                            />
+                            <Input {...field} placeholder="Enter registration number" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -194,10 +199,7 @@ export default function AddVehicle() {
                           <FormItem>
                             <FormLabel>Manufacturer</FormLabel>
                             <FormControl>
-                              <Input
-                                {...field}
-                                placeholder="Enter manufacturer"
-                              />
+                              <Input {...field} placeholder="Enter manufacturer" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -227,11 +229,7 @@ export default function AddVehicle() {
                           <FormItem>
                             <FormLabel>Year of Make</FormLabel>
                             <FormControl>
-                              <Input
-                                {...field}
-                                type="number"
-                                placeholder="Enter year"
-                              />
+                              <Input {...field} type="number" placeholder="Enter year" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -245,10 +243,7 @@ export default function AddVehicle() {
                           <FormItem>
                             <FormLabel>Current Location</FormLabel>
                             <FormControl>
-                              <Input
-                                {...field}
-                                placeholder="Click map or use my location"
-                              />
+                              <Input {...field} placeholder="Click map or use my location" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -275,43 +270,10 @@ export default function AddVehicle() {
             </Card>
           </div>
 
-          {/* Map Section */}
-          <div className="relative h-[500px]">
-            <MapContainer
-              center={position}
-              zoom={5}
-              scrollWheelZoom={true}
-              className="h-full w-full z-0"
-            >
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/">OSM</a> contributors'
-              />
-              <LocationMarker position={position} setPosition={setPosition} />
-            </MapContainer>
-            <div className="absolute top-3 left-3 bg-white/80 px-3 py-1 rounded-md text-sm flex items-center gap-2 shadow">
-              <MapPin size={16} className="text-blue-600" />
-              Click anywhere to select location
-            </div>
-          </div>
+          {/* --- Map Section --- */}
+          <VehicleMap position={position} setPosition={setPosition} />
         </div>
       </motion.div>
     </main>
   );
-}
-
-function LocationMarker({
-  position,
-  setPosition,
-}: {
-  position: LatLngExpression;
-  setPosition: (p: LatLngExpression) => void;
-}) {
-  useMapEvents({
-    click(e) {
-      setPosition([e.latlng.lat, e.latlng.lng]);
-    },
-  });
-
-  return <Marker position={position} />;
 }
