@@ -1,6 +1,8 @@
+@import "leaflet/dist/leaflet.css";   /* 👈 required for react-leaflet map tiles */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
 
 :root {
   --primary: #6366f1;
